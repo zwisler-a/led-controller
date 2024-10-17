@@ -6,12 +6,21 @@
 #define LEDSTRIP_LED_H
 
 
+#include <vector>
+
+struct ColorTransition {
+    int red;
+    int green;
+    int blue;
+    int duration;
+};
+
 class led {
 public:
-    static void setColorBlocking(int bTargetRed, int bTargetGreen, int bTargetBlue, int bDuration);
     static void update();
-    static bool isInAnimation();
-    static void setColor(int red, int green, int blue, int dur);
+    static void setColor(ColorTransition colorTransition);
+    static void setColorAnimation(const std::vector<ColorTransition>& transitions, bool repeating);
+    static ColorTransition getColor();
 };
 
 

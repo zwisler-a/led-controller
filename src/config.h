@@ -8,19 +8,18 @@
 
 #include <string>
 #include <WString.h>
+#include <ArduinoJson.h>
 
 class config {
 public:
     static void init();
     static bool hasWifiConfig();
     static String getSsid();
-    static void setSsid(const String& ssid);
     static String getPassword();
-    static void setPassword(const String& pw);
     static String getHostname();
-    static void setHostname(const String& name);
     static void clearWifiConfig();
 
+    static void setWifiConfig(const String &ssid, const String &password, const String &name);
 };
 
 

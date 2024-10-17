@@ -5,41 +5,23 @@
 #include "config.h"
 #include <FS.h>
 #include <LittleFS.h>
+#include <ArduinoJson.h>
 
 String readFile(const char *path) {
-    Serial.printf("Reading file: %s\n", path);
+    Serial.printf("Reading file");
 
     File file = LittleFS.open(path, "r");
     if (!file) {
         Serial.println("Failed to open file for reading");
-        return "";
+        return "{}";
     }
 
-    Serial.print("Read from file: ");
     if (file.available()) {
         String str = file.readString();
-        Serial.println(str);
         return str;
     };
     file.close();
-    return "";
-}
-
-void writeFile(const char *path, const String& message) {
-    Serial.printf("Writing file: %s\n", path);
-
-    File file = LittleFS.open(path, "w");
-    if (!file) {
-        Serial.println("Failed to open file for writing");
-        return;
-    }
-    if (file.print(message)) {
-        Serial.println("File written");
-    } else {
-        Serial.println("Write failed");
-    }
-    delay(2000);  // Make sure the CREATE and LASTWRITE times are different
-    file.close();
+    return "{}";
 }
 
 void deleteFile(const char *path) {
@@ -51,43 +33,44 @@ void deleteFile(const char *path) {
     }
 }
 
+JsonDocument configDoc;
+
 void config::init() {
     if (!LittleFS.begin()) {
         Serial.println("LittleFS mount failed");
         return;
     }
+    deserializeJson(configDoc, readFile("/config.json"));
 }
 
 bool config::hasWifiConfig() {
-    return LittleFS.exists("/wifi_ssid.txt") && LittleFS.exists("/wifi_pw.txt");
+    return configDoc["ssid"] != nullptr && configDoc["password"] != nullptr && configDoc["name"] != nullptr;
 }
 
 String config::getSsid() {
-    return readFile("/wifi_ssid.txt");
-}
-
-void config::setSsid(const String& ssid) {
-    writeFile("/wifi_ssid.txt", ssid);
+    return configDoc["ssid"];
 }
 
 String config::getPassword() {
-    return readFile("/wifi_pw.txt");
-}
-
-void config::setPassword(const String& pw) {
-    writeFile("/wifi_pw.txt", pw);
+    return configDoc["password"];
 }
 
 String config::getHostname() {
-    return readFile("/wifi_name.txt");
+    return configDoc["name"];
 }
 
-void config::setHostname(const String &name) {
-    writeFile("/wifi_name.txt", name);
+void config::setWifiConfig(const String &ssid, const String &password, const String &name) {
+    configDoc["ssid"] = ssid;
+    configDoc["password"] = password;
+    configDoc["name"] = name;
+    File file = LittleFS.open("/config.json", "w");
+    if (!file) {
+        Serial.println("Could not open config file to write");
+        return;
+    }
+    serializeJson(configDoc, file);
 }
 
 void config::clearWifiConfig() {
-    deleteFile("/wifi_ssid.txt");
-    deleteFile("/wifi_name.txt");
-    deleteFile("/wifi_pw.txt");
+    deleteFile("/config.json");
 }

@@ -6,15 +6,15 @@
 
 void setup() {
     pinMode(3, FUNCTION_3);
-    // Serial.begin(9600);
+//    Serial.begin(9600);
     config::init();
-    // configure LED PWM resolution/range and set pins to LOW
+    // startConfigurationWifi LED PWM resolution/range and set pins to LOW
     analogWriteRange(256);
 
-    network::connect();
+    network::init();
 }
 
 void loop(){
-   network::checkWebServer();
+   network::update();
    led::update();
 }

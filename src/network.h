@@ -8,8 +8,8 @@
 
 class network {
 public:
-    static void connect();
-    static void checkWebServer();
+    static void init();
+    static void update();
 };
 
 
