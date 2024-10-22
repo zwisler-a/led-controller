@@ -3,13 +3,14 @@
 //
 
 #include "config.h"
+#include "util/util.h"
 #include <FS.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
-String readFile(const char *path) {
-    Serial.printf("Reading file");
+Configuration config::configuration;
 
+String readFile(const char *path) {
     File file = LittleFS.open(path, "r");
     if (!file) {
         Serial.println("Failed to open file for reading");
@@ -33,36 +34,42 @@ void deleteFile(const char *path) {
     }
 }
 
-JsonDocument configDoc;
 
 void config::init() {
+    JsonDocument configDoc;
     if (!LittleFS.begin()) {
         Serial.println("LittleFS mount failed");
         return;
     }
     deserializeJson(configDoc, readFile("/config.json"));
+    config::configuration = {
+            configDoc["ssid"],
+            configDoc["password"],
+            configDoc["name"],
+            configDoc["userId"],
+            configDoc["mqttServer"],
+            configDoc["mqttUser"],
+            configDoc["mqttPass"]
+    };
 }
 
-bool config::hasWifiConfig() {
-    return configDoc["ssid"] != nullptr && configDoc["password"] != nullptr && configDoc["name"] != nullptr;
+bool config::isConfigured() {
+    return !config::configuration.ssid.isEmpty() &&
+           !config::configuration.password.isEmpty() &&
+           !config::configuration.name.isEmpty() &&
+           !config::configuration.userId.isEmpty() &&
+           !config::configuration.mqttServer.isEmpty();
 }
 
-String config::getSsid() {
-    return configDoc["ssid"];
-}
-
-String config::getPassword() {
-    return configDoc["password"];
-}
-
-String config::getHostname() {
-    return configDoc["name"];
-}
-
-void config::setWifiConfig(const String &ssid, const String &password, const String &name) {
-    configDoc["ssid"] = ssid;
-    configDoc["password"] = password;
-    configDoc["name"] = name;
+void config::setConfiguration(const SetConfigurationRequest &request) {
+    JsonDocument configDoc;
+    configDoc["ssid"] = request.ssid;
+    configDoc["password"] = request.password;
+    configDoc["name"] = request.name;
+    configDoc["userId"] = request.userId;
+    configDoc["mqttServer"] = request.mqttServer;
+    configDoc["mqttUser"] = request.mqttUser;
+    configDoc["mqttPass"] = request.mqttPass;
     File file = LittleFS.open("/config.json", "w");
     if (!file) {
         Serial.println("Could not open config file to write");
@@ -71,6 +78,24 @@ void config::setWifiConfig(const String &ssid, const String &password, const Str
     serializeJson(configDoc, file);
 }
 
-void config::clearWifiConfig() {
+
+void config::clearConfig() {
     deleteFile("/config.json");
 }
+
+String config::getAnnouncement() {
+    JsonDocument deviceInfo = util::parseJson(readFile("/device.json"));
+    deviceInfo["id"] = getDeviceId();
+    deviceInfo["name"]["name"] = configuration.name;
+    JsonDocument announcement;
+    announcement["device"] = deviceInfo;
+    announcement["userId"] = configuration.userId;
+    announcement["deviceId"] = getDeviceId();
+    return util::serializeJson(announcement);
+}
+
+String config::getDeviceId() {
+    return String(EspClass::getChipId());
+}
+
+

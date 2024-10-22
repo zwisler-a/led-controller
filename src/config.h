@@ -6,20 +6,35 @@
 #define LEDSTRIP_CONFIG_H
 
 
-#include <string>
 #include <WString.h>
-#include <ArduinoJson.h>
+#include "api/SetConfigurationRequest.h"
+
+struct Configuration {
+    String ssid;
+    String password;
+    String name;
+    String userId;
+    String mqttServer;
+    String mqttUser;
+    String mqttPass;
+};
 
 class config {
 public:
-    static void init();
-    static bool hasWifiConfig();
-    static String getSsid();
-    static String getPassword();
-    static String getHostname();
-    static void clearWifiConfig();
+    static Configuration configuration;
 
-    static void setWifiConfig(const String &ssid, const String &password, const String &name);
+    static void init();
+
+    static bool isConfigured();
+
+    static String getAnnouncement();
+
+    static void clearConfig();
+
+    static void setConfiguration(const SetConfigurationRequest &request);
+
+    static String getDeviceId();
+
 };
 
 

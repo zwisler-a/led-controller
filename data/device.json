@@ -1,0 +1,24 @@
+{
+  "id": "<overwritten>",
+  "type": "action.devices.types.LIGHT",
+  "traits": [
+    "action.devices.traits.OnOff",
+    "action.devices.traits.ColorSetting",
+    "action.devices.traits.Brightness"
+  ],
+  "name": {
+    "name": "<overwritten>"
+  },
+  "willReportState": true,
+  "attributes": {
+    "colorModel": "rgb",
+    "commandOnlyBrightness": true
+  },
+  "deviceInfo": {
+    "manufacturer": "Zwisler",
+    "model": "esp-light-strip",
+    "hwVersion": "1.0",
+    "swVersion": "1.0"
+  }
+}
+

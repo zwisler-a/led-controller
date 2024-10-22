@@ -12,6 +12,7 @@ struct ColorTransition {
     int red;
     int green;
     int blue;
+    int brightness;
     int duration;
 };
 
@@ -21,6 +22,9 @@ public:
     static void setColor(ColorTransition colorTransition);
     static void setColorAnimation(const std::vector<ColorTransition>& transitions, bool repeating);
     static ColorTransition getColor();
+
+    static void setOn(bool on);
+    static bool getOn();
 };
 
 

@@ -4,17 +4,28 @@
 
 #include "led.h"
 #include "Arduino.h"
+#include "network/mqtt.h"
 
-int currentRed = 0;
-int currentGreen = 0;
-int currentBlue = 0;
+struct Color {
+    int red;
+    int green;
+    int blue;
+    int brightness;
+};
+
+Color currentColor{255, 255, 255, 100};
+bool isOn = true;
+int brightnessMemory;
+Color transitionColor{};
 
 unsigned long startTime = 0;
 
 int duration;
+
 float stepRed;
 float stepGreen;
 float stepBlue;
+float stepBrightness;
 bool inTransition = false;
 
 
@@ -29,26 +40,33 @@ const int greenPin = 3;
 const int bluePin = 2;
 
 void transitionToColor(ColorTransition colorTransition) {
-    Serial.print("Transitioning to:");
-    Serial.print(colorTransition.red);
-    Serial.print(", ");
-    Serial.print(colorTransition.green);
-    Serial.print(", ");
-    Serial.print(colorTransition.blue);
-    Serial.print(" | ");
-    Serial.println(colorTransition.duration);
+    if (inTransition) return;
+    isOn = true;
     int steps = 100;
     startTime = millis();
     duration = colorTransition.duration;
-    stepRed = (float) (colorTransition.red - currentRed) / steps;
-    stepGreen = (float) (colorTransition.green - currentGreen) / steps;
-    stepBlue = (float) (colorTransition.blue - currentBlue) / steps;
+    stepRed = (float) (colorTransition.red - currentColor.red) / steps;
+    stepGreen = (float) (colorTransition.green - currentColor.green) / steps;
+    stepBlue = (float) (colorTransition.blue - currentColor.blue) / steps;
+    stepBrightness = (float) (colorTransition.brightness - currentColor.brightness) / steps;
     inTransition = true;
+    transitionColor = currentColor;
+    currentColor = {
+            colorTransition.red,
+            colorTransition.green,
+            colorTransition.blue,
+            colorTransition.brightness
+    };
 }
 
 void led::setColor(ColorTransition colorTransition) {
     inAnimation = false;
+    if (inTransition) return;
     transitionToColor(colorTransition);
+}
+
+int gammaCorrection(int value) {
+    return std::pow((float)value / 255.0, 2.2) * 255.0;
 }
 
 void led::update() {
@@ -64,18 +82,16 @@ void led::update() {
     }
     if (progress < 0.0) progress = 0.0;
     // Calculate the new color values based on progress
-    int newRed = currentRed + (int) (stepRed * progress * 100);
-    int newGreen = currentGreen + (int) (stepGreen * progress * 100);
-    int newBlue = currentBlue + (int) (stepBlue * progress * 100);
-
-    analogWrite(redPin, newRed);
-    analogWrite(greenPin, newGreen);
-    analogWrite(bluePin, newBlue);
+    int newBrightness = transitionColor.brightness + (int) (stepBrightness * progress * 100);
+    int newRed = transitionColor.red + (int) (stepRed * progress * 100);
+    int newGreen = transitionColor.green + (int) (stepGreen * progress * 100);
+    int newBlue = transitionColor.blue + (int) (stepBlue * progress * 100);
+    Serial.printf("COLOR: %d %d %d %d \n", newRed, newGreen, newBlue, newBrightness);
+    analogWrite(redPin, gammaCorrection((newRed * newBrightness) / 100));
+    analogWrite(greenPin, gammaCorrection((newGreen * newBrightness) / 100));
+    analogWrite(bluePin, gammaCorrection((newBlue * newBrightness) / 100));
 
     if (!inTransition) {
-        currentBlue = newBlue;
-        currentRed = newRed;
-        currentGreen = newGreen;
         if (inAnimation) {
             if (currentAnimationTransition < animation.size() - 1) {
                 currentAnimationTransition++;
@@ -87,6 +103,11 @@ void led::update() {
             } else {
                 inAnimation = false;
                 Serial.println("Stopping animation");
+                mqtt::publishState();
+            }
+        } else {
+            if(isOn) {
+                mqtt::publishState();
             }
         }
     }
@@ -102,10 +123,37 @@ void led::setColorAnimation(const std::vector<ColorTransition> &transitions, boo
 
 ColorTransition led::getColor() {
     return {
-            currentRed,
-            currentGreen,
-            currentBlue,
+            currentColor.red,
+            currentColor.green,
+            currentColor.blue,
+            currentColor.brightness,
             0
     };
+}
+
+void led::setOn(bool on) {
+    if (!on) {
+        brightnessMemory = currentColor.brightness;
+        transitionToColor({
+                                  currentColor.red,
+                                  currentColor.green,
+                                  currentColor.blue,
+                                  0,
+                                  1000
+                          });
+    } else {
+        transitionToColor({
+                                  currentColor.red,
+                                  currentColor.green,
+                                  currentColor.blue,
+                                  brightnessMemory,
+                                  1000
+                          });
+    }
+    isOn = on;
+}
+
+bool led::getOn() {
+    return isOn;
 }
 
